@@ -182,13 +182,13 @@ The format would be read by Common Lisp so there are a few extra limitations.
 
 2. Strings are only for literal text and attribute values.
 
-3. A boolean attribute is a 1-item list `(name). A non-boolean attribute is a
-   2-item list `(name value)`.
+3. A boolean attribute is a 1-item list like `(name)`.
+   A non-boolean attribute is a 2-item list like `(name value)`.
 
-4. A tag is a ((tag-name attributes...) contents...).
+4. A tag is a list like `((tag-name attributes...) contents...)`.
 
 5. A "hole" to be replaced by a run-time calculation is a symbol in tag
-   contents or attribute value.
+   contents or in an attribute value.
 
 An example is:
 
@@ -205,5 +205,7 @@ corresponding to the HTML:
 An example of "holes" is:
 
 ```
-((sect (id label) (style "width:100px;")) label ((OL) ((LI) "1") ((LI) "2")) ((P)))
+((sect (id label1) (style "width:100px;")) label2 ((OL) ((LI) "1") ((LI) "2")) ((P)))
 ```
+
+Here, the symbols `label1` and `label2` are "holes".
