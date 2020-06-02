@@ -110,7 +110,7 @@ The response must return the Zen Database's index of the new entry.
 An example of this `POST` request is:
 
 	```
-        POST /dom HTTP/1.1
+        POST /doms HTTP/1.1
         Content-Length: ...
         Content-Type: text/plain
         Authorization: Basic Zm9vOmJhcg==
@@ -176,16 +176,19 @@ except for the URL.
 
 ## The format of a Scheme-language list representing a DOM
 
-1. No colons or apostrophes exist anywhere.
+The format would be read by Common Lisp so there are a few extra limitations.
 
-2. Strings are only for literal text or attribute values.
+1. No colons, hash signs, or apostrophes exist outside of strings.
 
-3. Any attribute is usually a 2-item list; sometimes a 1-item list.
+2. Strings are only for literal text and attribute values.
+
+3. A boolean attribute is a 1-item list `(name). A non-boolean attribute is a
+   2-item list `(name value)`.
 
 4. A tag is a ((tag-name attributes...) contents...).
 
-5. A "hole" to be replaced by a run-time calculation is a symbol in place of a tag
-or an attribute value.
+5. A "hole" to be replaced by a run-time calculation is a symbol in tag
+   contents or attribute value.
 
 An example is:
 
@@ -202,5 +205,5 @@ corresponding to the HTML:
 An example of "holes" is:
 
 ```
-(('sect (id 'label) (style "width:100px;")) 'label ((OL) ((LI) "1") ((LI) "2")) ((P)))
+((sect (id label) (style "width:100px;")) label ((OL) ((LI) "1") ((LI) "2")) ((P)))
 ```
