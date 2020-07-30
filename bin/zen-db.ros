@@ -1,0 +1,21 @@
+#!/bin/sh
+#|-*- mode:lisp -*-|#
+#|
+exec ros -Q -- $0 "$@"
+|#
+
+(defpackage :ros.script.zen-db.3802182867
+  (:use :cl))
+(in-package :ros.script.zen-db.3802182867)
+
+(ros:ensure-asdf)
+(push (uiop/pathname:pathname-parent-directory-pathname
+        (uiop:getcwd))
+      ql:*local-project-directories*)
+
+(ql:quickload :zen-db)
+
+(defun main (&rest argv)
+  (uiop:symbol-call :zen-db :start)
+  (loop (sleep 1)))
+;;; vim: set ft=lisp lisp:
