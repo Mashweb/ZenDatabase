@@ -16,6 +16,7 @@ exec ros -Q -- $0 "$@"
 (ql:quickload :zen-db)
 
 (defun main (&rest argv)
+  (declare (ignore argv))
   (uiop:symbol-call :zen-db :start)
   (loop (sleep 1)))
 ;;; vim: set ft=lisp lisp:

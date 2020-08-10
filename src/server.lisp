@@ -17,8 +17,11 @@
                                  :path "/doms/{id}"
                                  :documentation "Retrieve dom")
                 ((id :integer "The dom ID")))
+       (delete-dom (:request-method :delete
+                                    :path "/doms/{id}"
+                                    :documentation "Delete a dom")
+                ((id :integer "The dom ID")))
        (put-dom (:request-method :post
-                                 :produces ()
                                  :path "/doms"
                                  :documentation "Create dom")
                 ())))
@@ -37,7 +40,16 @@
 
 (rest:implement-resource-operation zen-db get-dom (id)
   (include-cors)
-  (data (store:store-object-with-id id)))
+  (let ((obj (store:store-object-with-id id)))
+    (cond (obj (data obj))
+          (t (setf (hunchentoot:return-code*) 404)
+             ""))))
+
+(rest:implement-resource-operation zen-db delete-dom (id)
+  (include-cors)
+  (store:delete-object (store:store-object-with-id id))
+  (setf (hunchentoot:return-code*) 204) ;; No Content
+  "")
 
 (rest:implement-resource-operation zen-db put-dom (&posted-content posted-content)
   (include-cors)
@@ -48,7 +60,7 @@
                                              posted-content)))))
       (setf (hunchentoot:header-out :location)
             (format nil "/doms/~A" (store:store-object-id obj)))
-      (setf (hunchentoot:return-code*) 201)
+      (setf (hunchentoot:return-code*) 201) ;; Created
       "")))
 
 (defun start-server ()
