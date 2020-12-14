@@ -10,6 +10,7 @@
   :serial t
   :components ((:file "packages")
                (:file "config")
+               (:file "util")
                (:file "db")
                (:file "server")
                (:file "main")
