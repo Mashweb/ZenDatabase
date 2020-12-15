@@ -8,7 +8,7 @@
          :index-keys all-user-names
          :index-values all-users)
    (password :accessor password :initarg :password)
-   (groups :accessor groups :initform nil))
+   (groups :accessor groups :initarg :groups :initform nil))
   (:metaclass store:persistent-class))
 
 (defclass group (store:store-object)

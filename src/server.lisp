@@ -11,6 +11,7 @@
 (defvar *auths* (make-hash-table :test #'equal))
 
 (defun proc-auth ()
+  (return-from proc-auth (first (all-users)))
   (let ((auth (hunchentoot:header-in* "X-Zen-Auth")))
     (when auth
       (destructuring-bind (username token)
@@ -47,12 +48,22 @@
      ; Nope
      (http-return 403))))
 
+(defun reintern (form package-name)
+  (let ((*package* (find-package package-name)))
+    (cond ((listp form)
+           (mapcar (lambda (f) (reintern f package-name)) form))
+          ((symbolp form)
+           (intern (symbol-name form) *package*))
+          (t form))))
+
 (defmacro define-operation (api op (&rest args) &body body)
   `(rest:implement-resource-operation ,api ,op ,args
-     (catch 'http-return
-       (let ((*current-user* (proc-auth)))
-         (include-cors)
-         ,@body))))
+     (reintern
+      (catch 'http-return
+        (let ((*current-user* (proc-auth)))
+          (include-cors)
+          ,@body))
+      'cl-user)))
 
 (defmacro http-return (code &optional (reply ""))
   `(progn
@@ -61,12 +72,16 @@
 
 (defmacro post-args ((&rest args) posted-args &body body)
   (alexandria:with-gensyms (data)
-    `(let ((,data (read-from-string ,posted-args)))
+    `(let ((,data (read-sexp ,posted-args)))
        (let ,(loop :for arg :in args
                    :collect (if (listp arg)
                                 `(,(first arg) (getf ,data ,(second arg)))
-                                `(,arg (getf ,data ,arg))))
+                                `(,arg (getf ,data ',arg))))
          ,@body))))
+
+(defun read-sexp (octets)
+  (let ((*package* (find-package 'zen-db)))
+    (read-from-string (babel:octets-to-string octets))))
 
 (rest:define-api zen-db ()
     (:title "Zen Database")
@@ -136,15 +151,16 @@
 (define-operation zen-db register (&posted-content posted-content)
   (post-args (name password) posted-content
     (store:with-transaction ()
-      (make-instance 'user :name name :password password))))
+      (let ((group (make-instance 'group :name name)))
+        (make-instance 'user :name name :password password :groups (list group))))))
 
 (define-operation zen-db get-groups (id)
   (with-db-obj (obj id)
-    (groups obj)))
+    (mapcar #'name (groups obj))))
 
 (define-operation zen-db put-groups (id &posted-content posted-content)
   (post-args (groups) posted-content
-    (with-transaction ()
+    (store:with-transaction ()
       (dolist (group-name groups)
         (let ((group (group-by-name group-name)))
           (unless group
@@ -162,13 +178,22 @@
 
 ;;;; DOMS
 
+(defun dom-to-api (dom)
+  (list 'id (store:store-object-id dom)
+        'owner (name (owner dom))
+        'group (name (group dom))
+        'permissions (permissions dom)
+        'ns (ns dom)
+        'data (data dom)))
+
 (define-operation zen-db get-doms ()
-  (mapcar #'data (store:store-objects-with-class 'dom)))
+  ;; TODO: Check authed user permissions
+  (mapcar #'dom-to-api (store:store-objects-with-class 'dom)))
 
 (define-operation zen-db get-dom (id)
   (with-db-obj (obj id)
     (check-permissions obj :r)
-    (data obj)))
+    (dom-to-api obj)))
 
 (define-operation zen-db delete-dom (id)
   (with-db-obj (obj id)
@@ -182,8 +207,7 @@
   (store:with-transaction ()
     (let ((obj
             (make-instance 'dom
-                           :data (read-from-string (babel:octets-to-string
-                                                    posted-content))
+                           :data (read-sexp posted-content)
                            :owner *current-user*
                            :group (group-by-name (name *current-user*)))))
       (setf (hunchentoot:header-out :location)
@@ -194,18 +218,21 @@
   (post-args (permissions) posted-content
     (with-db-obj (obj id)
       (check-permissions obj :w)
-      (setf (permissions obj) permissions))))
+      (store:with-transaction ()
+        (setf (permissions obj) permissions)))))
 
 (define-operation zen-db chown (id &posted-content posted-content)
   (post-args (owner group) posted-content
     (with-db-obj (obj id)
       (check-permissions obj :w)
-      (unless (or new-owner new-group)
+      (unless (or owner group)
         (http-return 400))
-      (when new-owner
-        (setf (owner obj) (user-by-name owner)))
-      (when new-group
-        (setf (group obj) (group-by-name group))))))
+      (store:with-transaction ()
+        (when owner
+          (setf (owner obj) (user-by-name owner)))
+        (when group
+          (setf (group obj) (group-by-name group)))
+        ""))))
 
 ;;;; MISC
 
